@@ -1,9 +1,12 @@
 package com.esms.views.contacts
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,6 +17,7 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,7 +49,7 @@ fun ContactList(navController: NavController, filterString: MutableState<String>
         modifier = Modifier.fillMaxSize(),
         state = scrollState
     ) {
-        allContacts.filter { params.getNicknameForNumber(it.number, it.name).lowercase().contains(filterString.value) }.forEach { contact ->
+        allContacts.filter { params.getNicknameForNumber(it.number, it.name).lowercase().contains(filterString.value.lowercase()) }.forEach { contact ->
             item {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -53,21 +57,13 @@ fun ContactList(navController: NavController, filterString: MutableState<String>
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(5.dp)
+                        .clickable {
+                            params.currentContact.value = contact
+                            params.setCurrentEncryptionEngineFromNumber(contact.number)
+                            navController.navigate("conversation")
+                        }
                 ) {
-                    // general contact info
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .clickable {
-                                params.currentContact.value = contact
-                                params.setCurrentEncryptionEngineFromNumber(contact.number)
-                                navController.navigate("conversation")
-                            }
-                    ) {
-                        ContactBox(contact)
-                    }
-
-
+                    ContactBox(contact)
                     // IconButton to edit/get more info
                     IconButton(
                         onClick = {
@@ -77,7 +73,7 @@ fun ContactList(navController: NavController, filterString: MutableState<String>
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Edit,
+                            imageVector = Icons.Default.Build,
                             contentDescription = "Edit ${contact.name}'s contact info",
                             tint = MaterialTheme.colors.onSurface
                         )
