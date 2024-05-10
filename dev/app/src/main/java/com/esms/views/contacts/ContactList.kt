@@ -1,9 +1,12 @@
 package com.esms.views.contacts
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -53,21 +56,13 @@ fun ContactList(navController: NavController, filterString: MutableState<String>
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(5.dp)
+                        .clickable {
+                            params.currentContact.value = contact
+                            params.setCurrentEncryptionEngineFromNumber(contact.number)
+                            navController.navigate("conversation")
+                        }
                 ) {
-                    // general contact info
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .clickable {
-                                params.currentContact.value = contact
-                                params.setCurrentEncryptionEngineFromNumber(contact.number)
-                                navController.navigate("conversation")
-                            }
-                    ) {
-                        ContactBox(contact)
-                    }
-
-
+                    ContactBox(contact)
                     // IconButton to edit/get more info
                     IconButton(
                         onClick = {
