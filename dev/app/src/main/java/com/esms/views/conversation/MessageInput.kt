@@ -5,9 +5,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
@@ -21,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.esms.models.LocalParameters
 import com.esms.models.Parameters
@@ -29,7 +33,7 @@ import com.esms.services.SmsService
 import kotlin.concurrent.thread
 
 @Composable
-fun MessageInput(context: Context) {
+fun MessageInput() {
     val params = LocalParameters.current
     val currentContact = remember {params.currentContact.value!!}
     val currentAddress = currentContact.number
@@ -52,6 +56,7 @@ fun MessageInput(context: Context) {
                 .fillMaxWidth(0.90F)
                 .padding(padding),
             maxLines = 5,
+            keyboardOptions = KeyboardOptions(KeyboardCapitalization.Sentences),
         )
 
         // Send IconButton
@@ -63,7 +68,7 @@ fun MessageInput(context: Context) {
                     sendMessageAsync(params, messageText, currentAddress)
                 }
             },
-            modifier = Modifier
+            modifier = Modifier.offset(x = 4.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Send,
