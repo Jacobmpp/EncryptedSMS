@@ -1,7 +1,6 @@
 package com.esms.views.parameters.selectors
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +25,7 @@ import androidx.compose.ui.unit.dp
 
 fun ModalSelector(
     name: String,
+    hint: String = "",
     contents: Array<@Composable ()->Unit>,
 ): @Composable () -> Unit{
     return {
@@ -37,13 +37,16 @@ fun ModalSelector(
                 .padding(5.dp)
         ) {
             // general contact info
-            Box(
-                contentAlignment = Alignment.Center,
+            Row(
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = name,
                     color = MaterialTheme.colors.onSurface
                 )
+
+                HintPuck(hint)
             }
 
             var showDialog by remember { mutableStateOf(false) }
