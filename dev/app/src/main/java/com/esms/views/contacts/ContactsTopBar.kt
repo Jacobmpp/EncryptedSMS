@@ -28,7 +28,7 @@ import com.esms.views.contacts.search.SearchButton
 fun ContactsTopBar(navController: NavController, filterString: MutableState<String>) {
     val searchBarState = remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.Absolute.SpaceBetween,
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colors.surface)
@@ -39,7 +39,11 @@ fun ContactsTopBar(navController: NavController, filterString: MutableState<Stri
         SearchButton(searchBarState)
 
         // Center content
-        Text(text = "ESMS", color = MaterialTheme.colors.onSurface)
+        if(!searchBarState.value) {
+            filterString.value = ""
+            Text(text = "ESMS", color = MaterialTheme.colors.onSurface)
+        } else
+            SearchBar(filterString)
 
         // Right IconButton
         IconButton(
@@ -53,5 +57,4 @@ fun ContactsTopBar(navController: NavController, filterString: MutableState<Stri
             )
         }
     }
-    SearchBar(searchBarState, filterString)
 }

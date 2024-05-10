@@ -45,7 +45,7 @@ fun ContactList(navController: NavController, filterString: MutableState<String>
         modifier = Modifier.fillMaxSize(),
         state = scrollState
     ) {
-        allContacts.filter { params.getNicknameForNumber(it.number, it.name).lowercase().contains(filterString.value) }.forEach { contact ->
+        allContacts.filter { params.getNicknameForNumber(it.number, it.name).lowercase().contains(filterString.value.lowercase()) }.forEach { contact ->
             item {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
