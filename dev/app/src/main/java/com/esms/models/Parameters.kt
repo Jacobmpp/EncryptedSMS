@@ -222,8 +222,8 @@ class Parameters (application: Application) : AndroidViewModel(application){
             name = "Encryption Algorithm",
             hint = "The algorithmn that will be used to encrypt messages with this contact.\n" +
                     "(default) denotes that if you change your default algorithm, this one will change as well.\n" +
-                    "PlainText means that no encryption is done and the message is sent as is.\n" +
-                    "CaeserCipher is a very old form of cipher that shifts letters by some constant value\n" +
+                    "Plain Text means that no encryption is done and the message is sent as is.\n" +
+                    "Caeser Cipher is a very old form of cipher that shifts letters by some constant value\n" +
                     "AES is military grade encryption assuming you pick a secure key and share it with the other messenger securely.\n" +
                     "DES is an old insecure algorithm that appears visually similar.\n" +
                     "DESede is a 3 layer version of DES that is basically secure by today's standards.",
@@ -247,7 +247,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             name = "Encryption Parameter",
             hint = "This is the key that will be used to encrypt and decrypt the messages you exchange with this person.\n" +
             "Make sure it is long (>8 characters) and hard to guess (think password requirements) if you really want it to be secure.\n" +
-            "If you are using CaeserCipher, this must be a number.",
+            "If you are using Caeser Cipher, this must be a number.",
             setter = { algorithm: String -> run {
                 numberToEncryptionParameters[currentContact.number] = algorithm
                 save()
@@ -261,8 +261,8 @@ class Parameters (application: Application) : AndroidViewModel(application){
             name = "Default Encryption Algorithm",
             hint = "The algorithmn that will be used to encrypt messages by default if you do not change it in the conversation settings.\n" +
                     "(default) denotes that if you change your default algorithm, this one will change as well.\n" +
-                    "PlainText means that no encryption is done and the message is sent as is.\n" +
-                    "CaeserCipher is a very old form of cipher that shifts letters by some constant value\n" +
+                    "Plain Text means that no encryption is done and the message is sent as is.\n" +
+                    "Caeser Cipher is a very old form of cipher that shifts letters by some constant value\n" +
                     "AES is military grade encryption assuming you pick a secure key and share it with the other messenger securely.\n" +
                     "DES is an old insecure algorithm that appears visually similar.\n" +
                     "DESede is a 3 layer version of DES that is basically secure by today's standards.",
@@ -280,7 +280,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             name = "Default Encryption Parameter",
             hint = "This is the key that will be used by default for any conversation where you have not set it.\n" +
                     "Make sure it is long (>8 characters) and hard to guess (think password requirements) if you really want it to be secure.\n" +
-                    "If you are using CaeserCipher, this must be a number.",
+                    "If you are using Caeser Cipher, this must be a number.",
             setter = { algorithm: String -> run {
                 numberToEncryptionParameters[""] = algorithm
                 save()

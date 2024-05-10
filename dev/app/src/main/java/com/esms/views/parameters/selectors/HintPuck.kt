@@ -30,8 +30,8 @@ fun HintPuck(hint: String) {
         onClick = { showHint = true },
         modifier = Modifier
             .height(48.dp)
-            .width(80.dp)
-            .offset(x = -20.dp, y = 1.dp)
+            .width(40.dp)
+            .offset(x = -4.dp, y = 1.dp)
     ) {
         Icon(
             imageVector = Icons.Default.Info,
