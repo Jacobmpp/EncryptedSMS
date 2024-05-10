@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 
 fun ToggleSelector(
     name: String,
+    hint: String = "",
     setter: (Boolean)->Unit,
     currentState: Boolean,
 ): @Composable () -> Unit{
@@ -31,13 +32,16 @@ fun ToggleSelector(
                 .padding(5.dp)
         ) {
             // general contact info
-            Box(
-                contentAlignment = Alignment.Center,
+            Row(
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = name,
                     color = MaterialTheme.colors.onSurface
                 )
+
+                HintPuck(hint)
             }
 
             Box{
