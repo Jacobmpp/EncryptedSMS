@@ -1,12 +1,8 @@
 package com.esms.views.contacts
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,7 +14,6 @@ import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -39,8 +34,12 @@ fun ContactList(navController: NavController, filterString: MutableState<String>
     // retrieve the list of contacts
     val allContacts = remember { mutableListOf<PhoneContact>() }
     LaunchedEffect(key1 = Unit) {
-        val contact = readContacts(context = context)
-        allContacts += contact.sortedBy { -params.getLastMessageTimeForNumber(it.number) }
+        allContacts += readContacts(context = context).sortedWith(
+            compareBy(
+                {-params.getSortingPriorityForNumber(it.number)},
+                {-params.getLastMessageTimeForNumber(it.number)}
+            )
+        )
     }
 
     // display the list of contacts
@@ -63,7 +62,7 @@ fun ContactList(navController: NavController, filterString: MutableState<String>
                             navController.navigate("conversation")
                         }
                 ) {
-                    ContactBox(contact)
+                    ContactBox(contact, showPriority = true)
                     // IconButton to edit/get more info
                     IconButton(
                         onClick = {

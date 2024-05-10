@@ -83,6 +83,15 @@ class Parameters (application: Application) : AndroidViewModel(application){
         }
     }
 
+    private var numberToSortingPriority = mutableMapOf<String, Float>()
+    fun getSortingPriorityForNumber(number: String) : Float {
+        return numberToSortingPriority[number] ?: 0f
+    }
+    fun setSortingPriorityForNumber(number: String, value: Float) {
+        numberToSortingPriority[number] = value
+        save()
+    }
+
     var theme = mutableStateOf("System") // Light, Dark, System, Custom
 
     private val customColors = mutableStateOf(
@@ -159,6 +168,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
     val TIMESTAMPS = "4"
     val THEME = "5"
     val CUSTOM_THEME = "6"
+    val CONTACT_ORDERING_PRIORITY = "7"
 
     fun save() {
         val maps = mapOf(
@@ -169,6 +179,8 @@ class Parameters (application: Application) : AndroidViewModel(application){
             TIMESTAMPS to numberToLastMessageTime.toMap(),
             THEME to mapOf("" to theme.value),
             CUSTOM_THEME to getCustomColorsMap(),
+            CONTACT_ORDERING_PRIORITY to numberToSortingPriority
+                .mapValues { (_, value) -> value.toString() },
             )
         val saveEncryptor = engineGen.createEngine("AES", saveEncryptionParameter.value)
         val saveString = saveSystem.serializeMapOfMaps(maps)
@@ -191,6 +203,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
             theme.value = maps.getOrDefault(THEME, mapOf("" to "System")).getOrDefault("", "System")
             setCustomColorsFromMap(maps.getOrDefault(CUSTOM_THEME, getCustomColorsMap()))
+            numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloat() }?.toMutableMap() ?: mutableMapOf("" to 0f)
 
             loaded.value = true
         } catch (_: Exception){}
@@ -202,6 +215,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
         return listOfNotNull(
             SectionMarker("Contact Specific Settings", isNull = globalParams),
             nicknameSelector(currentContact.value),
+            contactSortingPrioritySelector(currentContact.value),
             SectionMarker("Encryption Settings", isNull = globalParams),
             encryptionAlgorithmSelector(currentContact.value),
             encryptionParameterSelector(currentContact.value),
@@ -320,6 +334,23 @@ class Parameters (application: Application) : AndroidViewModel(application){
             }},
             currentState = getNicknameForNumber(currentState.number, currentState.name),
             comment = " (Leave this blank -> Reset to ${currentState.name})"
+        )
+    }
+    private fun contactSortingPrioritySelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
+        if(currentState == null)
+            return null
+
+        return FreeSelector(
+            name = "Sorting Priority",
+            hint = "",
+            setter = { key: String -> run {
+                if((key.toFloatOrNull() ?: 0f) != 0f)
+                    setSortingPriorityForNumber(currentState.number, key.toFloat())
+                else
+                    numberToSortingPriority.remove(currentState.number)
+                save()
+            }},
+            currentState = getSortingPriorityForNumber(currentState.number).toString(),
         )
     }
     private fun primaryThemeSelector() : @Composable ()->Unit {
