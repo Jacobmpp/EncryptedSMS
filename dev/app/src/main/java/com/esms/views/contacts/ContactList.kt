@@ -55,12 +55,12 @@ fun ContactList(navController: NavController, filterString: MutableState<String>
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(5.dp)
                         .clickable {
                             params.currentContact.value = contact
                             params.setCurrentEncryptionEngineFromNumber(contact.number)
                             navController.navigate("conversation")
                         }
+                        .padding(5.dp)
                 ) {
                     ContactBox(contact, showPriority = true)
                     // IconButton to edit/get more info
