@@ -3,9 +3,11 @@ package com.esms.views.parameters.selectors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.Icon
@@ -65,19 +67,34 @@ fun ModalSelector(
             if (showDialog) {
                 AlertDialog(
                     onDismissRequest = { showDialog = false },
-                    title = { Text(text = name) },
                     text = {
-                        Column(verticalArrangement = Arrangement.SpaceEvenly) {
-                            contents.forEach { Row { it.invoke() } }
+                        Column(
+                            verticalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxHeight(0.6f)
+                        ) {
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.h6,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            LazyColumn(
+                                verticalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                contents.forEach {
+                                    item {
+                                        Row {
+                                            it.invoke()
+                                        }
+                                    }
+                                }
+                            }
                         }
                     },
                     confirmButton = {
-                        Button(
-                            onClick = {
-                                showDialog = false
-                            }
-                        ) { Text("Done") }
-                    },
+                        Button(onClick = { showDialog = false }) {
+                            Text("Done")
+                        }
+                    }
                 )
             }
         }

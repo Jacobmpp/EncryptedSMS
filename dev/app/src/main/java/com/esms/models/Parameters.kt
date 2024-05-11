@@ -107,6 +107,21 @@ class Parameters (application: Application) : AndroidViewModel(application){
         save()
     }
 
+    private var numberToInsecurityWarning = mutableMapOf("" to false)
+    fun getInsecurityWarningForNumber(number: String) : Boolean {
+        return numberToInsecurityWarning[number]
+            ?: numberToInsecurityWarning[""]
+            ?: true
+    }
+    fun setInsecurityWarningForNumber(number: String, value: Boolean) {
+        numberToInsecurityWarning[number] = value
+        save()
+    }
+    fun getInsecurityForNumber(number: String) : Boolean {
+        return getEncryptionAlgorithmForNumber(number) != DEFAULT_ENCRYPTION_ALGORITHM
+                || getEncryptionParametersForNumber(number) == DEFAULT_ENCRYPTION_PARAMETERS
+    }
+
     var theme = mutableStateOf("System") // Light, Dark, System, Custom
 
     private val customColors = mutableStateOf(
@@ -125,8 +140,8 @@ class Parameters (application: Application) : AndroidViewModel(application){
             surface = Color(0xFF111111),
             onSurface = Color(0xFFEEEEEE),
 
-            error = Color(0xFFFF7070),
-            onError = Color(0xFF111111),
+            error = Color(0xFFFF4040),
+            onError = Color(0xFFFFFFFF),
         )
     )
     private val customColorsMap = mutableMapOf<String, String>()
@@ -186,6 +201,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
     val CUSTOM_THEME = "6"
     val CONTACT_ORDERING_PRIORITY = "7"
     val AUTO_DECRYPT = "8"
+    val INSECURITY_WARNING = "9"
 
     fun save() {
         val maps = mapOf(
@@ -197,6 +213,8 @@ class Parameters (application: Application) : AndroidViewModel(application){
             CONTACT_ORDERING_PRIORITY to numberToSortingPriority
                 .mapValues { (_, value) -> value.toString() },
             AUTO_DECRYPT to numberToAutoDecrypt
+                .mapValues { (_, value) -> value.toString() },
+            INSECURITY_WARNING to numberToInsecurityWarning
                 .mapValues { (_, value) -> value.toString() },
             SINGLE_VALUE_PARAMETERS to mapOf(
                     SAVE_ENCRYPTION_PARAMETER to saveEncryptionParameter.value,
@@ -224,8 +242,9 @@ class Parameters (application: Application) : AndroidViewModel(application){
             numberToNickname = maps[NICKNAMES]?.toMutableMap() ?: mutableMapOf()
             numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
             setCustomColorsFromMap(maps[CUSTOM_THEME] ?: getCustomColorsMap())
-            numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloat() }?.toMutableMap() ?: mutableMapOf()
+            numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloatOrNull()?:0f }?.toMutableMap() ?: mutableMapOf()
             numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to false)
+            numberToInsecurityWarning = maps[INSECURITY_WARNING]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to true)
 
             if(maps.containsKey(SINGLE_VALUE_PARAMETERS)){
                 val svp = maps[SINGLE_VALUE_PARAMETERS]!!
@@ -252,6 +271,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             nicknameSelector(currentContact.value),
             contactSortingPrioritySelector(currentContact.value),
             contactAutoDecryptSelector(currentContact.value),
+            contactInsecurityWarningSelector(currentContact.value),
             SectionMarker("Encryption Settings", isNull = globalParams),
             encryptionAlgorithmSelector(currentContact.value),
             encryptionParameterSelector(currentContact.value),
@@ -260,6 +280,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             defaultEncryptionParameterSelector(),
             globalEncryptionKeySelector(),
             defaultAutoDecryptSelector(),
+            defaultInsecurityWarningSelector(),
             SectionMarker("Theme Settings"),
             primaryThemeSelector(),
             customThemeColorSelectors(theme.value),
@@ -271,10 +292,10 @@ class Parameters (application: Application) : AndroidViewModel(application){
             return null
         return OptionsSelector(
             name = "Encryption Algorithm",
-            hint = "The algorithmn that will be used to encrypt messages with this contact.\n" +
+            hint = "The algorithm that will be used to encrypt messages with this contact.\n" +
                     "(default) denotes that if you change your default algorithm, this one will change as well.\n" +
                     "Plain Text means that no encryption is done and the message is sent as is.\n" +
-                    "Caeser Cipher is a very old form of cipher that shifts letters by some constant value\n" +
+                    "Caesar Cipher is a very old form of cipher that shifts letters by some constant value\n" +
                     "AES is military grade encryption assuming you pick a secure key and share it with the other messenger securely.\n" +
                     "DES is an old insecure algorithm that appears visually similar.\n" +
                     "DESede is a 3 layer version of DES that is basically secure by today's standards.",
@@ -298,7 +319,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             name = "Encryption Parameter",
             hint = "This is the key that will be used to encrypt and decrypt the messages you exchange with this person.\n" +
             "Make sure it is long (>8 characters) and hard to guess (think password requirements) if you really want it to be secure.\n" +
-            "If you are using Caeser Cipher, this must be a number.",
+            "If you are using Caesar Cipher, this must be a number.",
             setter = { algorithm: String -> run {
                 numberToEncryptionParameters[currentContact.number] = algorithm
                 save()
@@ -310,10 +331,10 @@ class Parameters (application: Application) : AndroidViewModel(application){
     private fun defaultEncryptionAlgorithmSelector() : @Composable ()->Unit{
         return OptionsSelector(
             name = "Default Encryption Algorithm",
-            hint = "The algorithmn that will be used to encrypt messages by default if you do not change it in the conversation settings.\n" +
+            hint = "The algorithm that will be used to encrypt messages by default if you do not change it in the conversation settings.\n" +
                     "(default) denotes that if you change your default algorithm, this one will change as well.\n" +
                     "Plain Text means that no encryption is done and the message is sent as is.\n" +
-                    "Caeser Cipher is a very old form of cipher that shifts letters by some constant value\n" +
+                    "Caesar Cipher is a very old form of cipher that shifts letters by some constant value\n" +
                     "AES is military grade encryption assuming you pick a secure key and share it with the other messenger securely.\n" +
                     "DES is an old insecure algorithm that appears visually similar.\n" +
                     "DESede is a 3 layer version of DES that is basically secure by today's standards.",
@@ -331,7 +352,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             name = "Default Encryption Parameter",
             hint = "This is the key that will be used by default for any conversation where you have not set it.\n" +
                     "Make sure it is long (>8 characters) and hard to guess (think password requirements) if you really want it to be secure.\n" +
-                    "If you are using Caeser Cipher, this must be a number.",
+                    "If you are using Caesar Cipher, this must be a number.",
             setter = { algorithm: String -> run {
                 numberToEncryptionParameters[""] = algorithm
                 save()
@@ -392,7 +413,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             currentState = getSortingPriorityForNumber(currentState.number).toString(),
         )
     }
-    private fun defaultAutoDecryptSelector() : (@Composable ()->Unit)? {
+    private fun defaultAutoDecryptSelector() : (@Composable ()->Unit) {
         return ToggleSelector(
             name = "Default Auto Decryption",
             hint = "Auto decryption being active means that when you are on the conversation screen, messages will be automatically decrypted. This uses slightly more power and reduces the over the shoulder viewing security that comes with having to tap messages to decrypt them. When you have never toggled auto decryption for a contact, the value of this toggle will be used.",
@@ -417,6 +438,31 @@ class Parameters (application: Application) : AndroidViewModel(application){
             currentState = getAutoDecryptForNumber(currentState.number),
         )
     }
+    private fun defaultInsecurityWarningSelector() : (@Composable ()->Unit) {
+        return ToggleSelector(
+            name = "Default Insecurity Warning",
+            hint = "Insecurity Warning being active means that when you are using a less than maximally secure algorithm or key (though bad keys besides the default are not checked for), you will be shown an error banner at the top of the conversation screen. When you have never toggled insecurity warning for a contact, the value of this toggle will be used.",
+            setter = { key: Boolean -> run {
+                setInsecurityWarningForNumber("", key)
+                save()
+            }},
+            currentState = getInsecurityWarningForNumber(""),
+        )
+    }
+    private fun contactInsecurityWarningSelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
+        if(currentState == null)
+            return null
+
+        return ToggleSelector(
+            name = "Insecurity Warning",
+            hint = "Insecurity Warning being active means that when you are using a less than maximally secure algorithm or key (though bad keys besides the default are not checked for), you will be shown an error banner at the top of the conversation screen.",
+            setter = { key: Boolean -> run {
+                setInsecurityWarningForNumber(currentState.number, key)
+                save()
+            }},
+            currentState = getInsecurityWarningForNumber(currentState.number),
+        )
+    }
     private fun primaryThemeSelector() : @Composable ()->Unit {
         return OptionsSelector(
             name = "Color Theme",
@@ -428,7 +474,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             options = listOf("System", "Dark", "Light", "Custom")
         )
     }
-    private fun customThemeColorSelectors(theme: String): @Composable() (() -> Unit)? {
+    private fun customThemeColorSelectors(theme: String): @Composable (() -> Unit)? {
         if(theme != "Custom")
             return null
         return ModalSelector(
@@ -441,15 +487,16 @@ class Parameters (application: Application) : AndroidViewModel(application){
         return listOf(
                 listOf("primary","The color of confirmation buttons and drop-down menus"),
                 listOf("primaryVariant","The color of cancel buttons"),
-                listOf("onPrimary","The color of any text or icon on top of the primary color or primaryVarient color"),
+                listOf("onPrimary","The color of any text or icon on top of the primary color or primaryVariant color"),
                 listOf("secondary","The color of incoming messages"),
-                listOf("secondaryVariant","This color is currently unused in the theme, but nothing is stopping you from changing it anyway"),
+                listOf("secondaryVariant","This color is currently unused in the theme, but nothing is stopping you from changing it anyway."),
                 listOf("onSecondary","The color of any text or icon on top of something of the secondary color"),
                 listOf("background","The color of the very bottom layer of each screen"),
                 listOf("onBackground","The color of any text or icon on top of something of the background color"),
                 listOf("surface","The color in the background of popup panels like this one. You may notice that the edit icon seems to be missing, but it is just blending in."),
                 listOf("onSurface","The color of any text or icon on top of something of the surface color"),
-                listOf("error","This is the color that will be displayed in the case of a handled error, though it may not be used at this time. I recommend making it very different so you can recognize any time it appears as an error.")
+                listOf("error","This is the color that shows when there is something that is negative and needs your attention like the insecurity warning."),
+                listOf("onError","The color of any text or icon on top of something of the error color")
             ).map {
                 ColorSelector(
                     name = it[0],
