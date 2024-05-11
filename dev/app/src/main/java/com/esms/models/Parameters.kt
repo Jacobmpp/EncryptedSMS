@@ -225,7 +225,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
             setCustomColorsFromMap(maps[CUSTOM_THEME] ?: getCustomColorsMap())
             numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloat() }?.toMutableMap() ?: mutableMapOf()
-            numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean()?:false }?.toMutableMap() ?: mutableMapOf("" to false)
+            numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to false)
 
             if(maps.containsKey(SINGLE_VALUE_PARAMETERS)){
                 val svp = maps[SINGLE_VALUE_PARAMETERS]!!
@@ -259,7 +259,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             defaultEncryptionAlgorithmSelector(),
             defaultEncryptionParameterSelector(),
             globalEncryptionKeySelector(),
-            defaultAutoDecryptSelector(currentContact.value),
+            defaultAutoDecryptSelector(),
             SectionMarker("Theme Settings"),
             primaryThemeSelector(),
             customThemeColorSelectors(theme.value),
@@ -392,7 +392,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             currentState = getSortingPriorityForNumber(currentState.number).toString(),
         )
     }
-    private fun defaultAutoDecryptSelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
+    private fun defaultAutoDecryptSelector() : (@Composable ()->Unit)? {
         return ToggleSelector(
             name = "Default Auto Decryption",
             hint = "Auto decryption being active means that when you are on the conversation screen, messages will be automatically decrypted. This uses slightly more power and reduces the over the shoulder viewing security that comes with having to tap messages to decrypt them. When you have never toggled auto decryption for a contact, the value of this toggle will be used.",
