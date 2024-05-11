@@ -49,14 +49,15 @@ fun ContactBox(contact: PhoneContact, showPriority: Boolean = false) {
                 )
                 val priority = if(showPriority) params.getSortingPriorityForNumber(contact.number) else 0f
                 if(priority != 0f){
+                    val simplePriority = if (priority % 1f == 0f) priority.toInt() else priority
                     Icon(
                         imageVector = Icons.Default.Star,
-                        contentDescription = "Contact has a sorting priority of $priority",
+                        contentDescription = "Contact has a sorting priority of $simplePriority",
                         tint = MaterialTheme.colors.onSurface.copy(alpha = 0.3f),
                         modifier = Modifier.offset(x = 4.dp, y = -1.dp)
                     )
                     Text(
-                        text = " $priority",
+                        text = " $simplePriority",
                         color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f),
                     )
                 }
