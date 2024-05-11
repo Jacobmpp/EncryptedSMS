@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 
 fun OptionsSelector(
     name: String,
+    hint: String = "",
     setter: (String)->Unit,
     currentState: String,
     options: List<String>,
@@ -34,13 +35,16 @@ fun OptionsSelector(
                 .padding(5.dp)
         ) {
             // general contact info
-            Box(
-                contentAlignment = Alignment.Center,
+            Row(
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = name,
                     color = MaterialTheme.colors.onSurface
                 )
+
+                HintPuck(hint)
             }
 
             Box{

@@ -9,11 +9,13 @@ import okhttp3.internal.toHexString
 
 fun ColorSelector(
     name: String,
+    hint: String = "",
     setter: (Color)->Unit,
     currentState: MutableState<Color>,
 ): @Composable () -> Unit{
     return FreeSelector(
         name,
+        hint,
         setter = {
             try{
                 setter(Color(it.toColorInt()))

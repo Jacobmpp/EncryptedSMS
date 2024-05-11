@@ -9,8 +9,8 @@ class CryptographyEngineGenerator {
 
     init {
         // Register engine types here
-        registerEngine("PlainText") { params -> PlainTextEngine(params) }
-        registerEngine("CaesarCipher") { params -> CaesarCipherEngine(params) }
+        registerEngine("Plain Text") { params -> PlainTextEngine(params) }
+        registerEngine("Caesar Cipher") { params -> CaesarCipherEngine(params) }
         registerEngine("AES") { params -> AESCryptographyEngine(params) }
         registerEngine("DES") { params -> DESCryptographyEngine(params) }
         registerEngine("DESede") { params -> DESedeCryptographyEngine(params) }
@@ -20,8 +20,16 @@ class CryptographyEngineGenerator {
         engines[name] = creator
     }
 
+    fun backwardCompatibilityNameChanger(name: String): String {
+        return when(name) {
+            "CaesarCipher" -> "Caesar Cipher"
+            "PlainText" -> "Plain Text"
+            else -> name
+        }
+    }
+
     fun createEngine(name: String, parameters: String): CryptographyEngine {
-        val creator = engines[name] ?: {params -> PlainTextEngine(params)}
+        val creator = engines[backwardCompatibilityNameChanger(name)] ?: {params -> PlainTextEngine(params)}
         return creator.invoke(parameters)
     }
 

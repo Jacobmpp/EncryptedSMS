@@ -16,6 +16,6 @@ fun ConversationScreen(navController: NavController) {
         content = { innerPadding -> Box(modifier = Modifier.padding(innerPadding)) {
             ConversationHistory()
         }},
-        bottomBar = {MessageInput(LocalContext.current)}
+        bottomBar = {MessageInput()},
     )
 }

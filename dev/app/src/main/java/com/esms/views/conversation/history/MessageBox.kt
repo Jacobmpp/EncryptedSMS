@@ -32,11 +32,13 @@ import com.esms.models.parseDate
 fun MessageBox(content: String,
                time: Long,
                received: Boolean,
+               autoDecrypt: Boolean = false,
 ) {
     val INCORRECT_KEY = "System message: <You encryption key is incorrect>"
 
     val params = LocalParameters.current
     var encrypted by remember { mutableStateOf(true) }
+    var reencrypted by remember { mutableStateOf(false) }
     val encryptedText by remember { mutableStateOf(content) }
     var decryptedText by remember { mutableStateOf<String?>(null) }
 
@@ -50,11 +52,24 @@ fun MessageBox(content: String,
     val fontSize = 15.sp
     val padding = 10.dp
 
+    if(autoDecrypt && !reencrypted){
+        if(encrypted) {
+            if(decryptedText == null) {
+                decryptedText = try {
+                    params.currentEncryptionEngine.value.decrypt(encryptedText)
+                } catch (_:Exception){ null }
+            }
+            encrypted = false
+        } else {
+            encrypted = true
+        }
+    }
+
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
         Row(
             verticalAlignment = Alignment.CenterVertically, modifier = Modifier
                 .fillMaxWidth()
-                .padding(padding, padding/5)
+                .padding(padding, padding / 5)
         ) {
             // message contents
             Box(
@@ -63,7 +78,8 @@ fun MessageBox(content: String,
                     .background(
                         shape = RoundedCornerShape(padding),
                         color = backgroundColor
-                    ).weight(
+                    )
+                    .weight(
                         weight = 1.0f,  // limit max size
                         fill = false  // only grow if needed
                     )
@@ -77,15 +93,18 @@ fun MessageBox(content: String,
                     modifier = Modifier
                         .padding(padding)
                         .clickable {
-                            if(encrypted) {
-                                if(decryptedText == null) {
+                            if (encrypted) {
+                                if (decryptedText == null) {
                                     decryptedText = try {
                                         params.currentEncryptionEngine.value.decrypt(encryptedText)
-                                    } catch (_:Exception){ null }
+                                    } catch (_: Exception) {
+                                        null
+                                    }
                                 }
                                 encrypted = false
                             } else {
                                 encrypted = true
+                                reencrypted = true
                             }
                         }
                     )

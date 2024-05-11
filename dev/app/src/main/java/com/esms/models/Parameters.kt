@@ -18,6 +18,7 @@ import com.esms.views.parameters.selectors.FreeSelector
 import com.esms.views.parameters.selectors.ModalSelector
 import com.esms.views.parameters.selectors.OptionsSelector
 import com.esms.views.parameters.selectors.SectionMarker
+import com.esms.views.parameters.selectors.ToggleSelector
 import java.lang.Long.parseLong
 
 class Parameters (application: Application) : AndroidViewModel(application){
@@ -53,12 +54,16 @@ class Parameters (application: Application) : AndroidViewModel(application){
     // Saved Params
     private var numberToEncryptionAlgorithm = mutableMapOf<String, String>()
     private fun getEncryptionAlgorithmForNumber(number: String?) : String{
-        return numberToEncryptionAlgorithm[number] ?: numberToEncryptionAlgorithm[""] ?: DEFAULT_ENCRYPTION_ALGORITHM
+        return numberToEncryptionAlgorithm[number]
+            ?: numberToEncryptionAlgorithm[""]
+            ?: DEFAULT_ENCRYPTION_ALGORITHM
     }
 
     private var numberToEncryptionParameters = mutableMapOf<String, String>()
     private fun getEncryptionParametersForNumber(number: String?) : String {
-        return numberToEncryptionParameters[number] ?: numberToEncryptionParameters[""] ?: DEFAULT_ENCRYPTION_PARAMETERS
+        return numberToEncryptionParameters[number]
+            ?: numberToEncryptionParameters[""]
+            ?: DEFAULT_ENCRYPTION_PARAMETERS
     }
 
     private var saveEncryptionParameter = mutableStateOf(DEFAULT_ENCRYPTION_PARAMETERS)
@@ -80,6 +85,26 @@ class Parameters (application: Application) : AndroidViewModel(application){
             numberToLastMessageTime[number] = timestamp.toString()
             save()
         }
+    }
+
+    private var numberToSortingPriority = mutableMapOf<String, Float>()
+    fun getSortingPriorityForNumber(number: String) : Float {
+        return numberToSortingPriority[number] ?: 0f
+    }
+    fun setSortingPriorityForNumber(number: String, value: Float) {
+        numberToSortingPriority[number] = value
+        save()
+    }
+
+    private var numberToAutoDecrypt = mutableMapOf("" to false)
+    fun getAutoDecryptForNumber(number: String) : Boolean {
+        return numberToAutoDecrypt[number]
+            ?: numberToAutoDecrypt[""]
+            ?: false
+    }
+    fun setAutoDecryptForNumber(number: String, value: Boolean) {
+        numberToAutoDecrypt[number] = value
+        save()
     }
 
     var theme = mutableStateOf("System") // Light, Dark, System, Custom
@@ -151,6 +176,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
     }
 
     // Persistence Functions
+    val SINGLE_VALUE_PARAMETERS = "A"
     val ENCRYPTION_ALGORITHMS = "0"
     val ENCRYPTION_PARAMETERS = "1"
     val SAVE_ENCRYPTION_PARAMETER = "2"
@@ -158,16 +184,24 @@ class Parameters (application: Application) : AndroidViewModel(application){
     val TIMESTAMPS = "4"
     val THEME = "5"
     val CUSTOM_THEME = "6"
+    val CONTACT_ORDERING_PRIORITY = "7"
+    val AUTO_DECRYPT = "8"
 
     fun save() {
         val maps = mapOf(
             ENCRYPTION_ALGORITHMS to numberToEncryptionAlgorithm.toMap(),
             ENCRYPTION_PARAMETERS to numberToEncryptionParameters.toMap(),
-            SAVE_ENCRYPTION_PARAMETER to mapOf("" to saveEncryptionParameter.value),
             NICKNAMES to numberToNickname.toMap(),
             TIMESTAMPS to numberToLastMessageTime.toMap(),
-            THEME to mapOf("" to theme.value),
             CUSTOM_THEME to getCustomColorsMap(),
+            CONTACT_ORDERING_PRIORITY to numberToSortingPriority
+                .mapValues { (_, value) -> value.toString() },
+            AUTO_DECRYPT to numberToAutoDecrypt
+                .mapValues { (_, value) -> value.toString() },
+            SINGLE_VALUE_PARAMETERS to mapOf(
+                    SAVE_ENCRYPTION_PARAMETER to saveEncryptionParameter.value,
+                    THEME to theme.value,
+                ),
             )
         val saveEncryptor = engineGen.createEngine("AES", saveEncryptionParameter.value)
         val saveString = saveSystem.serializeMapOfMaps(maps)
@@ -183,13 +217,28 @@ class Parameters (application: Application) : AndroidViewModel(application){
                 throw Exception()
             val maps = saveSystem.deserializeMapOfMaps(decryptedString)
 
-            numberToEncryptionAlgorithm = maps[ENCRYPTION_ALGORITHMS]?.toMutableMap() ?: mutableMapOf("" to DEFAULT_ENCRYPTION_ALGORITHM)
-            numberToEncryptionParameters = maps[ENCRYPTION_PARAMETERS]?.toMutableMap() ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
-            saveEncryptionParameter.value = maps.getOrDefault(SAVE_ENCRYPTION_PARAMETER, mapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)).getOrDefault("", DEFAULT_ENCRYPTION_PARAMETERS)
+            numberToEncryptionAlgorithm = maps[ENCRYPTION_ALGORITHMS]?.toMutableMap()
+                ?: mutableMapOf("" to DEFAULT_ENCRYPTION_ALGORITHM)
+            numberToEncryptionParameters = maps[ENCRYPTION_PARAMETERS]?.toMutableMap()
+                ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
             numberToNickname = maps[NICKNAMES]?.toMutableMap() ?: mutableMapOf()
             numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
-            theme.value = maps.getOrDefault(THEME, mapOf("" to "System")).getOrDefault("", "System")
-            setCustomColorsFromMap(maps.getOrDefault(CUSTOM_THEME, getCustomColorsMap()))
+            setCustomColorsFromMap(maps[CUSTOM_THEME] ?: getCustomColorsMap())
+            numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloat() }?.toMutableMap() ?: mutableMapOf()
+            numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to false)
+
+            if(maps.containsKey(SINGLE_VALUE_PARAMETERS)){
+                val svp = maps[SINGLE_VALUE_PARAMETERS]!!
+                theme.value = svp[THEME] ?: "System"
+                saveEncryptionParameter.value = svp[SAVE_ENCRYPTION_PARAMETER]
+                    ?: DEFAULT_ENCRYPTION_PARAMETERS
+            } else {
+                // Backwards compatibility load (don't need to add new params because they wont have them saved in the old format)
+                theme.value = (maps[THEME] ?: mapOf("" to "System"))[""] ?: "System"
+                saveEncryptionParameter.value = (maps[SAVE_ENCRYPTION_PARAMETER]
+                    ?: mapOf("" to DEFAULT_ENCRYPTION_PARAMETERS))[""]
+                    ?: DEFAULT_ENCRYPTION_PARAMETERS
+            }
 
             loaded.value = true
         } catch (_: Exception){}
@@ -201,6 +250,8 @@ class Parameters (application: Application) : AndroidViewModel(application){
         return listOfNotNull(
             SectionMarker("Contact Specific Settings", isNull = globalParams),
             nicknameSelector(currentContact.value),
+            contactSortingPrioritySelector(currentContact.value),
+            contactAutoDecryptSelector(currentContact.value),
             SectionMarker("Encryption Settings", isNull = globalParams),
             encryptionAlgorithmSelector(currentContact.value),
             encryptionParameterSelector(currentContact.value),
@@ -208,9 +259,10 @@ class Parameters (application: Application) : AndroidViewModel(application){
             defaultEncryptionAlgorithmSelector(),
             defaultEncryptionParameterSelector(),
             globalEncryptionKeySelector(),
+            defaultAutoDecryptSelector(),
             SectionMarker("Theme Settings"),
             primaryThemeSelector(),
-            if(theme.value == "Custom") ModalSelector("Custom Theme Colors", customColorSelectors()) else null,
+            customThemeColorSelectors(theme.value),
         )
     }
 
@@ -219,6 +271,13 @@ class Parameters (application: Application) : AndroidViewModel(application){
             return null
         return OptionsSelector(
             name = "Encryption Algorithm",
+            hint = "The algorithmn that will be used to encrypt messages with this contact.\n" +
+                    "(default) denotes that if you change your default algorithm, this one will change as well.\n" +
+                    "Plain Text means that no encryption is done and the message is sent as is.\n" +
+                    "Caeser Cipher is a very old form of cipher that shifts letters by some constant value\n" +
+                    "AES is military grade encryption assuming you pick a secure key and share it with the other messenger securely.\n" +
+                    "DES is an old insecure algorithm that appears visually similar.\n" +
+                    "DESede is a 3 layer version of DES that is basically secure by today's standards.",
             setter = { algorithm: String -> run {
                 if (algorithm.contains(DEFAULT_LABEL))
                     numberToEncryptionAlgorithm.remove(currentContact.number)
@@ -237,6 +296,9 @@ class Parameters (application: Application) : AndroidViewModel(application){
             return null
         return FreeSelector(
             name = "Encryption Parameter",
+            hint = "This is the key that will be used to encrypt and decrypt the messages you exchange with this person.\n" +
+            "Make sure it is long (>8 characters) and hard to guess (think password requirements) if you really want it to be secure.\n" +
+            "If you are using Caeser Cipher, this must be a number.",
             setter = { algorithm: String -> run {
                 numberToEncryptionParameters[currentContact.number] = algorithm
                 save()
@@ -248,6 +310,13 @@ class Parameters (application: Application) : AndroidViewModel(application){
     private fun defaultEncryptionAlgorithmSelector() : @Composable ()->Unit{
         return OptionsSelector(
             name = "Default Encryption Algorithm",
+            hint = "The algorithmn that will be used to encrypt messages by default if you do not change it in the conversation settings.\n" +
+                    "(default) denotes that if you change your default algorithm, this one will change as well.\n" +
+                    "Plain Text means that no encryption is done and the message is sent as is.\n" +
+                    "Caeser Cipher is a very old form of cipher that shifts letters by some constant value\n" +
+                    "AES is military grade encryption assuming you pick a secure key and share it with the other messenger securely.\n" +
+                    "DES is an old insecure algorithm that appears visually similar.\n" +
+                    "DESede is a 3 layer version of DES that is basically secure by today's standards.",
             setter = { algorithm: String -> run {
                 numberToEncryptionAlgorithm[""] = algorithm
                 save()
@@ -260,6 +329,9 @@ class Parameters (application: Application) : AndroidViewModel(application){
     private fun defaultEncryptionParameterSelector() : @Composable ()->Unit {
         return FreeSelector(
             name = "Default Encryption Parameter",
+            hint = "This is the key that will be used by default for any conversation where you have not set it.\n" +
+                    "Make sure it is long (>8 characters) and hard to guess (think password requirements) if you really want it to be secure.\n" +
+                    "If you are using Caeser Cipher, this must be a number.",
             setter = { algorithm: String -> run {
                 numberToEncryptionParameters[""] = algorithm
                 save()
@@ -271,6 +343,11 @@ class Parameters (application: Application) : AndroidViewModel(application){
     private fun globalEncryptionKeySelector() : @Composable ()->Unit {
         return FreeSelector(
             name = "Save Encryption Key",
+            hint = "The password that you can use to have the saved data of this application securely encrypted when it is not open.\n" +
+            "The default password is '${DEFAULT_ENCRYPTION_PARAMETERS}' which is tried automatically. " +
+                    "If you change it, you will be asked to input the password upon startup.\n" +
+            "If you change the password and then forget it, YOU CANNOT GET BACK ANYTHING you have saved " +
+                    "including saved encryption keys and algorithms as well as nicknames and custom themes.",
             setter = { key: String -> run {
                 saveEncryptionParameter.value = key
                 save()
@@ -296,6 +373,50 @@ class Parameters (application: Application) : AndroidViewModel(application){
             comment = " (Leave this blank -> Reset to ${currentState.name})"
         )
     }
+    private fun contactSortingPrioritySelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
+        if(currentState == null)
+            return null
+
+        return FreeSelector(
+            name = "Sorting Priority",
+            hint = "If this value is higher than the value for another contact (default 0), " +
+                    "then this contact will be placed higher. If contact are tied, " +
+                    "they are sorted by most recently read message.",
+            setter = { key: String -> run {
+                if((key.toFloatOrNull() ?: 0f) != 0f)
+                    setSortingPriorityForNumber(currentState.number, key.toFloat())
+                else
+                    numberToSortingPriority.remove(currentState.number)
+                save()
+            }},
+            currentState = getSortingPriorityForNumber(currentState.number).toString(),
+        )
+    }
+    private fun defaultAutoDecryptSelector() : (@Composable ()->Unit)? {
+        return ToggleSelector(
+            name = "Default Auto Decryption",
+            hint = "Auto decryption being active means that when you are on the conversation screen, messages will be automatically decrypted. This uses slightly more power and reduces the over the shoulder viewing security that comes with having to tap messages to decrypt them. When you have never toggled auto decryption for a contact, the value of this toggle will be used.",
+            setter = { key: Boolean -> run {
+                setAutoDecryptForNumber("", key)
+                save()
+            }},
+            currentState = getAutoDecryptForNumber(""),
+        )
+    }
+    private fun contactAutoDecryptSelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
+        if(currentState == null)
+            return null
+
+        return ToggleSelector(
+            name = "Auto Decryption",
+            hint = "Auto decryption being active means that when you are on the conversation screen, messages will be automatically decrypted. This uses slightly more power and reduces the over the shoulder viewing security that comes with having to tap messages to decrypt them.",
+            setter = { key: Boolean -> run {
+                setAutoDecryptForNumber(currentState.number, key)
+                save()
+            }},
+            currentState = getAutoDecryptForNumber(currentState.number),
+        )
+    }
     private fun primaryThemeSelector() : @Composable ()->Unit {
         return OptionsSelector(
             name = "Color Theme",
@@ -307,30 +428,40 @@ class Parameters (application: Application) : AndroidViewModel(application){
             options = listOf("System", "Dark", "Light", "Custom")
         )
     }
+    private fun customThemeColorSelectors(theme: String): @Composable() (() -> Unit)? {
+        if(theme != "Custom")
+            return null
+        return ModalSelector(
+            name ="Custom Theme Colors",
+            hint = "Opens a window to set the values for each theme color",
+            contents = customColorSelectors()
+        )
+    }
     private fun customColorSelectors() : Array<@Composable ()->Unit> {
         return listOf(
-                "primary",
-                "primaryVariant",
-                "onPrimary",
-                "secondary",
-                "secondaryVariant",
-                "onSecondary",
-                "background",
-                "onBackground",
-                "surface",
-                "onSurface",
-                "error"
+                listOf("primary","The color of confirmation buttons and drop-down menus"),
+                listOf("primaryVariant","The color of cancel buttons"),
+                listOf("onPrimary","The color of any text or icon on top of the primary color or primaryVarient color"),
+                listOf("secondary","The color of incoming messages"),
+                listOf("secondaryVariant","This color is currently unused in the theme, but nothing is stopping you from changing it anyway"),
+                listOf("onSecondary","The color of any text or icon on top of something of the secondary color"),
+                listOf("background","The color of the very bottom layer of each screen"),
+                listOf("onBackground","The color of any text or icon on top of something of the background color"),
+                listOf("surface","The color in the background of popup panels like this one. You may notice that the edit icon seems to be missing, but it is just blending in."),
+                listOf("onSurface","The color of any text or icon on top of something of the surface color"),
+                listOf("error","This is the color that will be displayed in the case of a handled error, though it may not be used at this time. I recommend making it very different so you can recognize any time it appears as an error.")
             ).map {
                 ColorSelector(
-                    it,
+                    name = it[0],
+                    hint = it[1],
                     setter = {
                         color: Color -> run {
-                            customColorsMap[it] = color.toArgb().toString()
+                            customColorsMap[it[0]] = color.toArgb().toString()
                             setCustomColorsFromMap(customColorsMap.toMap())
                             save()
                         }
                     },
-                    currentState = mutableStateOf(Color(customColorsMap[it]!!.toInt()))
+                    currentState = mutableStateOf(Color(customColorsMap[it[0]]!!.toInt()))
                 )
             }.toTypedArray()
     }
