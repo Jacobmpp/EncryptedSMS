@@ -362,7 +362,9 @@ class Parameters (application: Application) : AndroidViewModel(application){
 
         return FreeSelector(
             name = "Sorting Priority",
-            hint = "",
+            hint = "If this value is higher than the value for another contact (default 0), " +
+                    "then this contact will be placed higher. If contact are tied, " +
+                    "they are sorted by most recently read message.",
             setter = { key: String -> run {
                 if((key.toFloatOrNull() ?: 0f) != 0f)
                     setSortingPriorityForNumber(currentState.number, key.toFloat())
