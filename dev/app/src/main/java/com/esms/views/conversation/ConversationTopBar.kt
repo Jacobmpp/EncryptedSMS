@@ -2,6 +2,7 @@ package com.esms.views.conversation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
@@ -26,42 +28,62 @@ import com.esms.views.contacts.ContactBox
 fun ConversationTopBar(navController: NavController) {
     val params = LocalParameters.current
     val currentContact = remember {params.currentContact.value!!}
-    Row(verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colors.surface)
-            .height(60.dp)
-            .padding(5.dp)
-    ) {
-        // Left IconButton
-        IconButton(
-            onClick = {
-                navController.popBackStack()
-                params.currentContact.value = null
-            },
-            modifier = Modifier.size(48.dp)
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colors.surface)
+                .height(60.dp)
+                .padding(5.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = "Back to contacts",
-                tint = MaterialTheme.colors.onSurface
-            )
+            // Left IconButton
+            IconButton(
+                onClick = {
+                    navController.popBackStack()
+                    params.currentContact.value = null
+                },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back to contacts",
+                    tint = MaterialTheme.colors.onSurface
+                )
+            }
+
+            // Center Content
+            ContactBox(contact = currentContact)
+
+            // Right IconButton
+            IconButton(
+                onClick = { navController.navigate("parameters") },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Conversation settings",
+                    tint = MaterialTheme.colors.onSurface
+                )
+            }
         }
-
-        // Center Content
-        ContactBox(contact = currentContact)
-
-        // Right IconButton
-        IconButton(
-            onClick = { navController.navigate("parameters") },
-            modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Menu,
-                contentDescription = "Conversation settings",
-                tint = MaterialTheme.colors.onSurface
-            )
+        if(
+            params.getInsecurityWarningForNumber(currentContact.number)
+            && params.getInsecurityForNumber(currentContact.number)
+        )
+        {
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colors.error)
+                    .padding(5.dp)
+            ) {
+                Text(
+                    text = "Warning: Encryption algorithm in use is insecure, and/or the key is set to the default.",
+                    color = MaterialTheme.colors.onError,
+                )
+            }
         }
     }
 }
