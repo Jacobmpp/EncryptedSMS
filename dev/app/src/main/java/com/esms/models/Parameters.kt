@@ -54,12 +54,16 @@ class Parameters (application: Application) : AndroidViewModel(application){
     // Saved Params
     private var numberToEncryptionAlgorithm = mutableMapOf<String, String>()
     private fun getEncryptionAlgorithmForNumber(number: String?) : String{
-        return numberToEncryptionAlgorithm[number] ?: numberToEncryptionAlgorithm[""] ?: DEFAULT_ENCRYPTION_ALGORITHM
+        return numberToEncryptionAlgorithm[number]
+            ?: numberToEncryptionAlgorithm[""]
+            ?: DEFAULT_ENCRYPTION_ALGORITHM
     }
 
     private var numberToEncryptionParameters = mutableMapOf<String, String>()
     private fun getEncryptionParametersForNumber(number: String?) : String {
-        return numberToEncryptionParameters[number] ?: numberToEncryptionParameters[""] ?: DEFAULT_ENCRYPTION_PARAMETERS
+        return numberToEncryptionParameters[number]
+            ?: numberToEncryptionParameters[""]
+            ?: DEFAULT_ENCRYPTION_PARAMETERS
     }
 
     private var saveEncryptionParameter = mutableStateOf(DEFAULT_ENCRYPTION_PARAMETERS)
@@ -161,6 +165,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
     }
 
     // Persistence Functions
+    val SINGLE_VALUE_PARAMETERS = "A"
     val ENCRYPTION_ALGORITHMS = "0"
     val ENCRYPTION_PARAMETERS = "1"
     val SAVE_ENCRYPTION_PARAMETER = "2"
@@ -174,13 +179,15 @@ class Parameters (application: Application) : AndroidViewModel(application){
         val maps = mapOf(
             ENCRYPTION_ALGORITHMS to numberToEncryptionAlgorithm.toMap(),
             ENCRYPTION_PARAMETERS to numberToEncryptionParameters.toMap(),
-            SAVE_ENCRYPTION_PARAMETER to mapOf("" to saveEncryptionParameter.value),
             NICKNAMES to numberToNickname.toMap(),
             TIMESTAMPS to numberToLastMessageTime.toMap(),
-            THEME to mapOf("" to theme.value),
             CUSTOM_THEME to getCustomColorsMap(),
             CONTACT_ORDERING_PRIORITY to numberToSortingPriority
                 .mapValues { (_, value) -> value.toString() },
+            SINGLE_VALUE_PARAMETERS to mapOf(
+                    SAVE_ENCRYPTION_PARAMETER to saveEncryptionParameter.value,
+                    THEME to theme.value,
+                ),
             )
         val saveEncryptor = engineGen.createEngine("AES", saveEncryptionParameter.value)
         val saveString = saveSystem.serializeMapOfMaps(maps)
@@ -196,14 +203,27 @@ class Parameters (application: Application) : AndroidViewModel(application){
                 throw Exception()
             val maps = saveSystem.deserializeMapOfMaps(decryptedString)
 
-            numberToEncryptionAlgorithm = maps[ENCRYPTION_ALGORITHMS]?.toMutableMap() ?: mutableMapOf("" to DEFAULT_ENCRYPTION_ALGORITHM)
-            numberToEncryptionParameters = maps[ENCRYPTION_PARAMETERS]?.toMutableMap() ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
-            saveEncryptionParameter.value = maps.getOrDefault(SAVE_ENCRYPTION_PARAMETER, mapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)).getOrDefault("", DEFAULT_ENCRYPTION_PARAMETERS)
+            numberToEncryptionAlgorithm = maps[ENCRYPTION_ALGORITHMS]?.toMutableMap()
+                ?: mutableMapOf("" to DEFAULT_ENCRYPTION_ALGORITHM)
+            numberToEncryptionParameters = maps[ENCRYPTION_PARAMETERS]?.toMutableMap()
+                ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
             numberToNickname = maps[NICKNAMES]?.toMutableMap() ?: mutableMapOf()
             numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
-            theme.value = maps.getOrDefault(THEME, mapOf("" to "System")).getOrDefault("", "System")
-            setCustomColorsFromMap(maps.getOrDefault(CUSTOM_THEME, getCustomColorsMap()))
+            setCustomColorsFromMap(maps[CUSTOM_THEME] ?: getCustomColorsMap())
             numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloat() }?.toMutableMap() ?: mutableMapOf("" to 0f)
+
+            if(maps.containsKey(SINGLE_VALUE_PARAMETERS)){
+                val svp = maps[SINGLE_VALUE_PARAMETERS]!!
+                theme.value = svp[THEME] ?: "System"
+                saveEncryptionParameter.value = svp[SAVE_ENCRYPTION_PARAMETER]
+                    ?: DEFAULT_ENCRYPTION_PARAMETERS
+            } else {
+                // Backwards compatibility load (don't need to add new params because they wont have them saved in the old format)
+                theme.value = (maps[THEME] ?: mapOf("" to "System"))[""] ?: "System"
+                saveEncryptionParameter.value = (maps[SAVE_ENCRYPTION_PARAMETER]
+                    ?: mapOf("" to DEFAULT_ENCRYPTION_PARAMETERS))[""]
+                    ?: DEFAULT_ENCRYPTION_PARAMETERS
+            }
 
             loaded.value = true
         } catch (_: Exception){}
