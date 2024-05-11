@@ -96,6 +96,17 @@ class Parameters (application: Application) : AndroidViewModel(application){
         save()
     }
 
+    private var numberToAutoDecrypt = mutableMapOf("" to false)
+    fun getAutoDecryptForNumber(number: String) : Boolean {
+        return numberToAutoDecrypt[number]
+            ?: numberToAutoDecrypt[""]
+            ?: false
+    }
+    fun setAutoDecryptForNumber(number: String, value: Boolean) {
+        numberToAutoDecrypt[number] = value
+        save()
+    }
+
     var theme = mutableStateOf("System") // Light, Dark, System, Custom
 
     private val customColors = mutableStateOf(
@@ -174,6 +185,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
     val THEME = "5"
     val CUSTOM_THEME = "6"
     val CONTACT_ORDERING_PRIORITY = "7"
+    val AUTO_DECRYPT = "8"
 
     fun save() {
         val maps = mapOf(
@@ -183,6 +195,8 @@ class Parameters (application: Application) : AndroidViewModel(application){
             TIMESTAMPS to numberToLastMessageTime.toMap(),
             CUSTOM_THEME to getCustomColorsMap(),
             CONTACT_ORDERING_PRIORITY to numberToSortingPriority
+                .mapValues { (_, value) -> value.toString() },
+            AUTO_DECRYPT to numberToAutoDecrypt
                 .mapValues { (_, value) -> value.toString() },
             SINGLE_VALUE_PARAMETERS to mapOf(
                     SAVE_ENCRYPTION_PARAMETER to saveEncryptionParameter.value,
@@ -210,7 +224,8 @@ class Parameters (application: Application) : AndroidViewModel(application){
             numberToNickname = maps[NICKNAMES]?.toMutableMap() ?: mutableMapOf()
             numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
             setCustomColorsFromMap(maps[CUSTOM_THEME] ?: getCustomColorsMap())
-            numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloat() }?.toMutableMap() ?: mutableMapOf("" to 0f)
+            numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloat() }?.toMutableMap() ?: mutableMapOf()
+            numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean()?:false }?.toMutableMap() ?: mutableMapOf("" to false)
 
             if(maps.containsKey(SINGLE_VALUE_PARAMETERS)){
                 val svp = maps[SINGLE_VALUE_PARAMETERS]!!
@@ -236,6 +251,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             SectionMarker("Contact Specific Settings", isNull = globalParams),
             nicknameSelector(currentContact.value),
             contactSortingPrioritySelector(currentContact.value),
+            contactAutoDecryptSelector(currentContact.value),
             SectionMarker("Encryption Settings", isNull = globalParams),
             encryptionAlgorithmSelector(currentContact.value),
             encryptionParameterSelector(currentContact.value),
@@ -243,6 +259,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             defaultEncryptionAlgorithmSelector(),
             defaultEncryptionParameterSelector(),
             globalEncryptionKeySelector(),
+            defaultAutoDecryptSelector(currentContact.value),
             SectionMarker("Theme Settings"),
             primaryThemeSelector(),
             customThemeColorSelectors(theme.value),
@@ -373,6 +390,31 @@ class Parameters (application: Application) : AndroidViewModel(application){
                 save()
             }},
             currentState = getSortingPriorityForNumber(currentState.number).toString(),
+        )
+    }
+    private fun defaultAutoDecryptSelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
+        return ToggleSelector(
+            name = "Default Auto Decryption",
+            hint = "Auto decryption being active means that when you are on the conversation screen, messages will be automatically decrypted. This uses slightly more power and reduces the over the shoulder viewing security that comes with having to tap messages to decrypt them. When you have never toggled auto decryption for a contact, the value of this toggle will be used.",
+            setter = { key: Boolean -> run {
+                setAutoDecryptForNumber("", key)
+                save()
+            }},
+            currentState = getAutoDecryptForNumber(""),
+        )
+    }
+    private fun contactAutoDecryptSelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
+        if(currentState == null)
+            return null
+
+        return ToggleSelector(
+            name = "Auto Decryption",
+            hint = "Auto decryption being active means that when you are on the conversation screen, messages will be automatically decrypted. This uses slightly more power and reduces the over the shoulder viewing security that comes with having to tap messages to decrypt them.",
+            setter = { key: Boolean -> run {
+                setAutoDecryptForNumber(currentState.number, key)
+                save()
+            }},
+            currentState = getAutoDecryptForNumber(currentState.number),
         )
     }
     private fun primaryThemeSelector() : @Composable ()->Unit {

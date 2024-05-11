@@ -28,8 +28,9 @@ import kotlin.math.max
 @Composable
 fun ConversationHistory() {
     val params = LocalParameters.current
-    val currentContact = remember {params.currentContact.value!!}
+    val currentContact = remember { params.currentContact.value!! }
     val currentAddress = currentContact.number
+    val autoDecrypt = remember { mutableStateOf(params.getAutoDecryptForNumber(currentAddress)) }
     val context = LocalContext.current
     val smsService = SmsService(context)
     var allMessages by remember { mutableStateOf(smsService.readMessages(currentAddress)) }
@@ -80,6 +81,7 @@ fun ConversationHistory() {
                         content = it.body,
                         time = it.date,
                         received = it.type == SMSMessage.RECEIVED,
+                        autoDecrypt = autoDecrypt.value
                     )
                     params.setLastMessageTimeForNumber(currentContact.number, it.date)
                 }
