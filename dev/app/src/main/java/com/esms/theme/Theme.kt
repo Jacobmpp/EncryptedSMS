@@ -26,8 +26,8 @@ private val darkColors = darkColors(
     surface = Color(0xFF111111),
     onSurface = Color(0xFFEEEEEE),
 
-    error = Color(0xFFFF7070),
-    onError = Color(0xFF111111),
+    error = Color(0xFFFF4040),
+    onError = Color(0xFFFFFFFF),
 )
 
 private val lightColors = lightColors(
@@ -45,7 +45,7 @@ private val lightColors = lightColors(
     surface = Color(0xFFCCCCCC),
     onSurface = Color(0xFF111111),
 
-    error = Color(0xFFFF7070),
+    error = Color(0xFFFF9090),
     onError = Color(0xFF111111),
 )
 
