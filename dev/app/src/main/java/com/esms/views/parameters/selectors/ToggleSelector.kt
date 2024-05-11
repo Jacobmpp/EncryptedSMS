@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Switch
+import androidx.compose.material.SwitchDefaults
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,7 +47,19 @@ fun ToggleSelector(
 
             Box{
                 var state by remember { mutableStateOf(currentState) }
-                Switch(checked = currentState, onCheckedChange = {state = it; setter(it)})
+                Switch(
+                    checked = state,
+                    onCheckedChange = {
+                        state = it
+                        setter(it)
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colors.primary,
+                        checkedTrackColor = MaterialTheme.colors.primaryVariant,
+                        uncheckedThumbColor = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+                        uncheckedTrackColor = MaterialTheme.colors.onSurface.copy(alpha = 0.3f)
+                    )
+                )
             }
         }
     }

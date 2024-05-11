@@ -54,12 +54,16 @@ class Parameters (application: Application) : AndroidViewModel(application){
     // Saved Params
     private var numberToEncryptionAlgorithm = mutableMapOf<String, String>()
     private fun getEncryptionAlgorithmForNumber(number: String?) : String{
-        return numberToEncryptionAlgorithm[number] ?: numberToEncryptionAlgorithm[""] ?: DEFAULT_ENCRYPTION_ALGORITHM
+        return numberToEncryptionAlgorithm[number]
+            ?: numberToEncryptionAlgorithm[""]
+            ?: DEFAULT_ENCRYPTION_ALGORITHM
     }
 
     private var numberToEncryptionParameters = mutableMapOf<String, String>()
     private fun getEncryptionParametersForNumber(number: String?) : String {
-        return numberToEncryptionParameters[number] ?: numberToEncryptionParameters[""] ?: DEFAULT_ENCRYPTION_PARAMETERS
+        return numberToEncryptionParameters[number]
+            ?: numberToEncryptionParameters[""]
+            ?: DEFAULT_ENCRYPTION_PARAMETERS
     }
 
     private var saveEncryptionParameter = mutableStateOf(DEFAULT_ENCRYPTION_PARAMETERS)
@@ -89,6 +93,17 @@ class Parameters (application: Application) : AndroidViewModel(application){
     }
     fun setSortingPriorityForNumber(number: String, value: Float) {
         numberToSortingPriority[number] = value
+        save()
+    }
+
+    private var numberToAutoDecrypt = mutableMapOf("" to false)
+    fun getAutoDecryptForNumber(number: String) : Boolean {
+        return numberToAutoDecrypt[number]
+            ?: numberToAutoDecrypt[""]
+            ?: false
+    }
+    fun setAutoDecryptForNumber(number: String, value: Boolean) {
+        numberToAutoDecrypt[number] = value
         save()
     }
 
@@ -161,6 +176,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
     }
 
     // Persistence Functions
+    val SINGLE_VALUE_PARAMETERS = "A"
     val ENCRYPTION_ALGORITHMS = "0"
     val ENCRYPTION_PARAMETERS = "1"
     val SAVE_ENCRYPTION_PARAMETER = "2"
@@ -169,18 +185,23 @@ class Parameters (application: Application) : AndroidViewModel(application){
     val THEME = "5"
     val CUSTOM_THEME = "6"
     val CONTACT_ORDERING_PRIORITY = "7"
+    val AUTO_DECRYPT = "8"
 
     fun save() {
         val maps = mapOf(
             ENCRYPTION_ALGORITHMS to numberToEncryptionAlgorithm.toMap(),
             ENCRYPTION_PARAMETERS to numberToEncryptionParameters.toMap(),
-            SAVE_ENCRYPTION_PARAMETER to mapOf("" to saveEncryptionParameter.value),
             NICKNAMES to numberToNickname.toMap(),
             TIMESTAMPS to numberToLastMessageTime.toMap(),
-            THEME to mapOf("" to theme.value),
             CUSTOM_THEME to getCustomColorsMap(),
             CONTACT_ORDERING_PRIORITY to numberToSortingPriority
                 .mapValues { (_, value) -> value.toString() },
+            AUTO_DECRYPT to numberToAutoDecrypt
+                .mapValues { (_, value) -> value.toString() },
+            SINGLE_VALUE_PARAMETERS to mapOf(
+                    SAVE_ENCRYPTION_PARAMETER to saveEncryptionParameter.value,
+                    THEME to theme.value,
+                ),
             )
         val saveEncryptor = engineGen.createEngine("AES", saveEncryptionParameter.value)
         val saveString = saveSystem.serializeMapOfMaps(maps)
@@ -196,14 +217,28 @@ class Parameters (application: Application) : AndroidViewModel(application){
                 throw Exception()
             val maps = saveSystem.deserializeMapOfMaps(decryptedString)
 
-            numberToEncryptionAlgorithm = maps[ENCRYPTION_ALGORITHMS]?.toMutableMap() ?: mutableMapOf("" to DEFAULT_ENCRYPTION_ALGORITHM)
-            numberToEncryptionParameters = maps[ENCRYPTION_PARAMETERS]?.toMutableMap() ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
-            saveEncryptionParameter.value = maps.getOrDefault(SAVE_ENCRYPTION_PARAMETER, mapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)).getOrDefault("", DEFAULT_ENCRYPTION_PARAMETERS)
+            numberToEncryptionAlgorithm = maps[ENCRYPTION_ALGORITHMS]?.toMutableMap()
+                ?: mutableMapOf("" to DEFAULT_ENCRYPTION_ALGORITHM)
+            numberToEncryptionParameters = maps[ENCRYPTION_PARAMETERS]?.toMutableMap()
+                ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
             numberToNickname = maps[NICKNAMES]?.toMutableMap() ?: mutableMapOf()
             numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
-            theme.value = maps.getOrDefault(THEME, mapOf("" to "System")).getOrDefault("", "System")
-            setCustomColorsFromMap(maps.getOrDefault(CUSTOM_THEME, getCustomColorsMap()))
-            numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloat() }?.toMutableMap() ?: mutableMapOf("" to 0f)
+            setCustomColorsFromMap(maps[CUSTOM_THEME] ?: getCustomColorsMap())
+            numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloat() }?.toMutableMap() ?: mutableMapOf()
+            numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to false)
+
+            if(maps.containsKey(SINGLE_VALUE_PARAMETERS)){
+                val svp = maps[SINGLE_VALUE_PARAMETERS]!!
+                theme.value = svp[THEME] ?: "System"
+                saveEncryptionParameter.value = svp[SAVE_ENCRYPTION_PARAMETER]
+                    ?: DEFAULT_ENCRYPTION_PARAMETERS
+            } else {
+                // Backwards compatibility load (don't need to add new params because they wont have them saved in the old format)
+                theme.value = (maps[THEME] ?: mapOf("" to "System"))[""] ?: "System"
+                saveEncryptionParameter.value = (maps[SAVE_ENCRYPTION_PARAMETER]
+                    ?: mapOf("" to DEFAULT_ENCRYPTION_PARAMETERS))[""]
+                    ?: DEFAULT_ENCRYPTION_PARAMETERS
+            }
 
             loaded.value = true
         } catch (_: Exception){}
@@ -216,6 +251,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             SectionMarker("Contact Specific Settings", isNull = globalParams),
             nicknameSelector(currentContact.value),
             contactSortingPrioritySelector(currentContact.value),
+            contactAutoDecryptSelector(currentContact.value),
             SectionMarker("Encryption Settings", isNull = globalParams),
             encryptionAlgorithmSelector(currentContact.value),
             encryptionParameterSelector(currentContact.value),
@@ -223,6 +259,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             defaultEncryptionAlgorithmSelector(),
             defaultEncryptionParameterSelector(),
             globalEncryptionKeySelector(),
+            defaultAutoDecryptSelector(),
             SectionMarker("Theme Settings"),
             primaryThemeSelector(),
             customThemeColorSelectors(theme.value),
@@ -342,7 +379,9 @@ class Parameters (application: Application) : AndroidViewModel(application){
 
         return FreeSelector(
             name = "Sorting Priority",
-            hint = "",
+            hint = "If this value is higher than the value for another contact (default 0), " +
+                    "then this contact will be placed higher. If contact are tied, " +
+                    "they are sorted by most recently read message.",
             setter = { key: String -> run {
                 if((key.toFloatOrNull() ?: 0f) != 0f)
                     setSortingPriorityForNumber(currentState.number, key.toFloat())
@@ -351,6 +390,31 @@ class Parameters (application: Application) : AndroidViewModel(application){
                 save()
             }},
             currentState = getSortingPriorityForNumber(currentState.number).toString(),
+        )
+    }
+    private fun defaultAutoDecryptSelector() : (@Composable ()->Unit)? {
+        return ToggleSelector(
+            name = "Default Auto Decryption",
+            hint = "Auto decryption being active means that when you are on the conversation screen, messages will be automatically decrypted. This uses slightly more power and reduces the over the shoulder viewing security that comes with having to tap messages to decrypt them. When you have never toggled auto decryption for a contact, the value of this toggle will be used.",
+            setter = { key: Boolean -> run {
+                setAutoDecryptForNumber("", key)
+                save()
+            }},
+            currentState = getAutoDecryptForNumber(""),
+        )
+    }
+    private fun contactAutoDecryptSelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
+        if(currentState == null)
+            return null
+
+        return ToggleSelector(
+            name = "Auto Decryption",
+            hint = "Auto decryption being active means that when you are on the conversation screen, messages will be automatically decrypted. This uses slightly more power and reduces the over the shoulder viewing security that comes with having to tap messages to decrypt them.",
+            setter = { key: Boolean -> run {
+                setAutoDecryptForNumber(currentState.number, key)
+                save()
+            }},
+            currentState = getAutoDecryptForNumber(currentState.number),
         )
     }
     private fun primaryThemeSelector() : @Composable ()->Unit {
