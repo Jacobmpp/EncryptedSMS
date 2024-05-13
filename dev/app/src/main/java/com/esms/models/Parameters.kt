@@ -203,7 +203,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
     val AUTO_DECRYPT = "8"
     val INSECURITY_WARNING = "9"
 
-    fun save() {
+    fun save() : String {
         val maps = mapOf(
             ENCRYPTION_ALGORITHMS to numberToEncryptionAlgorithm.toMap(),
             ENCRYPTION_PARAMETERS to numberToEncryptionParameters.toMap(),
@@ -225,42 +225,47 @@ class Parameters (application: Application) : AndroidViewModel(application){
         val saveString = saveSystem.serializeMapOfMaps(maps)
         val encryptedSaveString = saveEncryptor.encrypt(saveString)
         saveSystem.write(encryptedSaveString)
+        return encryptedSaveString
     }
-    fun load(key: String = DEFAULT_ENCRYPTION_PARAMETERS) {
-        val savedString = saveSystem.read()
+    fun load(key: String = DEFAULT_ENCRYPTION_PARAMETERS, loadString: String? = null) : Boolean {
+        val savedString = loadString ?: saveSystem.read()
         val decryptingEngine = engineGen.createEngine("AES", key)
         val decryptedString = try {decryptingEngine.decrypt(savedString)} catch (_: Exception) {savedString}
-        try {
-            if(decryptedString == savedString && savedString != "")
-                throw Exception()
-            val maps = saveSystem.deserializeMapOfMaps(decryptedString)
+        if(decryptedString == savedString && savedString != "")
+            return false
 
-            numberToEncryptionAlgorithm = maps[ENCRYPTION_ALGORITHMS]?.toMutableMap()
-                ?: mutableMapOf("" to DEFAULT_ENCRYPTION_ALGORITHM)
-            numberToEncryptionParameters = maps[ENCRYPTION_PARAMETERS]?.toMutableMap()
-                ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
-            numberToNickname = maps[NICKNAMES]?.toMutableMap() ?: mutableMapOf()
-            numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
-            setCustomColorsFromMap(maps[CUSTOM_THEME] ?: getCustomColorsMap())
-            numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloatOrNull()?:0f }?.toMutableMap() ?: mutableMapOf()
-            numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to false)
-            numberToInsecurityWarning = maps[INSECURITY_WARNING]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to true)
+        val maps: Map<String, Map<String, String>> = try {
+            saveSystem.deserializeMapOfMaps(decryptedString)
+        } catch (e: Exception) {
+            return false
+        }
 
-            if(maps.containsKey(SINGLE_VALUE_PARAMETERS)){
-                val svp = maps[SINGLE_VALUE_PARAMETERS]!!
-                theme.value = svp[THEME] ?: "System"
-                saveEncryptionParameter.value = svp[SAVE_ENCRYPTION_PARAMETER]
-                    ?: DEFAULT_ENCRYPTION_PARAMETERS
-            } else {
-                // Backwards compatibility load (don't need to add new params because they wont have them saved in the old format)
-                theme.value = (maps[THEME] ?: mapOf("" to "System"))[""] ?: "System"
-                saveEncryptionParameter.value = (maps[SAVE_ENCRYPTION_PARAMETER]
-                    ?: mapOf("" to DEFAULT_ENCRYPTION_PARAMETERS))[""]
-                    ?: DEFAULT_ENCRYPTION_PARAMETERS
-            }
+        numberToEncryptionAlgorithm = maps[ENCRYPTION_ALGORITHMS]?.toMutableMap()
+            ?: mutableMapOf("" to DEFAULT_ENCRYPTION_ALGORITHM)
+        numberToEncryptionParameters = maps[ENCRYPTION_PARAMETERS]?.toMutableMap()
+            ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
+        numberToNickname = maps[NICKNAMES]?.toMutableMap() ?: mutableMapOf()
+        numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
+        setCustomColorsFromMap(maps[CUSTOM_THEME] ?: getCustomColorsMap())
+        numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloatOrNull()?:0f }?.toMutableMap() ?: mutableMapOf()
+        numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to false)
+        numberToInsecurityWarning = maps[INSECURITY_WARNING]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to true)
 
-            loaded.value = true
-        } catch (_: Exception){}
+        if(maps.containsKey(SINGLE_VALUE_PARAMETERS)){
+            val svp = maps[SINGLE_VALUE_PARAMETERS]!!
+            theme.value = svp[THEME] ?: "System"
+            saveEncryptionParameter.value = svp[SAVE_ENCRYPTION_PARAMETER]
+                ?: DEFAULT_ENCRYPTION_PARAMETERS
+        } else {
+            // Backwards compatibility load (don't need to add new params because they wont have them saved in the old format)
+            theme.value = (maps[THEME] ?: mapOf("" to "System"))[""] ?: "System"
+            saveEncryptionParameter.value = (maps[SAVE_ENCRYPTION_PARAMETER]
+                ?: mapOf("" to DEFAULT_ENCRYPTION_PARAMETERS))[""]
+                ?: DEFAULT_ENCRYPTION_PARAMETERS
+        }
+
+        loaded.value = true
+        return true
     }
 
     // Editable Parameters
@@ -374,7 +379,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
                 save()
             }},
             currentState = saveEncryptionParameter.value,
-            comment = " (\"$DEFAULT_ENCRYPTION_PARAMETERS\" = no auth screen)"
+            comment = "Set Value (\"$DEFAULT_ENCRYPTION_PARAMETERS\" = no auth screen)"
         )
     }
     private fun nicknameSelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
@@ -391,7 +396,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
                 save()
             }},
             currentState = getNicknameForNumber(currentState.number, currentState.name),
-            comment = " (Leave this blank -> Reset to ${currentState.name})"
+            comment = "Set Value (Leave this blank -> Reset to ${currentState.name})"
         )
     }
     private fun contactSortingPrioritySelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {

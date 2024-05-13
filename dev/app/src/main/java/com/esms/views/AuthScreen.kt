@@ -57,8 +57,7 @@ fun AuthScreen(onAuthGranted: () -> Unit) {
             confirmButton = {
                 Button(
                     onClick = {
-                        params.load(text)
-                        if(params.loaded.value)
+                        if(params.load(text))
                             onAuthGranted()
                         else {
                             text = ""
