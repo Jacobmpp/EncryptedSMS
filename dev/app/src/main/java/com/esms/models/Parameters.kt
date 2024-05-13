@@ -2,6 +2,7 @@ package com.esms.models
 
 import android.app.Application
 import androidx.compose.material.Colors
+import androidx.compose.material.TextField
 import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -11,6 +12,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.AndroidViewModel
 import com.esms.services.CryptographyEngineGenerator
 import com.esms.services.SharedPreferencesService
+import com.esms.services.Toaster
 import com.esms.services.engines.CryptographyEngine
 import com.esms.services.engines.custom.PlainTextEngine
 import com.esms.views.parameters.selectors.ColorSelector
@@ -26,11 +28,30 @@ class Parameters (application: Application) : AndroidViewModel(application){
     val DEFAULT_ENCRYPTION_ALGORITHM = "AES"
     val DEFAULT_ENCRYPTION_PARAMETERS = "insecure"
     val DEFAULT_LABEL = "Default"
+    val DEFAULT_CUSTOM_COLORS = darkColors(
+        primary = Color(0xFF1111AA),
+        primaryVariant = Color(0xFF116666),
+        onPrimary = Color(0xFFEEEEEE),
+
+        secondary = Color(0xFF771177),
+        secondaryVariant = Color(0xFF804040),
+        onSecondary = Color(0xFFEEEEEE),
+
+        background = Color(0xFF333333),
+        onBackground = Color(0xFFEEEEEE),
+
+        surface = Color(0xFF111111),
+        onSurface = Color(0xFFEEEEEE),
+
+        error = Color(0xFFFF4040),
+        onError = Color(0xFFFFFFFF),
+    )
 
     // Services
     private val engineGen = CryptographyEngineGenerator()
     private val saveSystem = SharedPreferencesService(application.applicationContext)
     val app = application
+    val toaster = Toaster(app.applicationContext)
 
     // Ephemeral Params
     var loaded = mutableStateOf(false)
@@ -124,52 +145,35 @@ class Parameters (application: Application) : AndroidViewModel(application){
 
     var theme = mutableStateOf("System") // Light, Dark, System, Custom
 
-    private val customColors = mutableStateOf(
-        darkColors(
-            primary = Color(0xFF1111AA),
-            primaryVariant = Color(0xFF116666),
-            onPrimary = Color(0xFFEEEEEE),
-
-            secondary = Color(0xFF771177),
-            secondaryVariant = Color(0xFF804040),
-            onSecondary = Color(0xFFEEEEEE),
-
-            background = Color(0xFF333333),
-            onBackground = Color(0xFFEEEEEE),
-
-            surface = Color(0xFF111111),
-            onSurface = Color(0xFFEEEEEE),
-
-            error = Color(0xFFFF4040),
-            onError = Color(0xFFFFFFFF),
-        )
-    )
+    private val customColors = mutableStateOf(DEFAULT_CUSTOM_COLORS)
     private val customColorsMap = mutableMapOf<String, String>()
     fun getCustomColors() : Colors {
         return customColors.value
     }
     private fun setCustomColorsFromMap(stringMap: Map<String, String>) {
-        if(stringMap.isEmpty())
-            return
-        customColors.value = darkColors(
-            primary = Color(stringMap["primary"]!!.toInt()),
-            primaryVariant = Color(stringMap["primaryVariant"]!!.toInt()),
-            onPrimary = Color(stringMap["onPrimary"]!!.toInt()),
+        customColors.value = if(stringMap.isEmpty()) {
+            DEFAULT_CUSTOM_COLORS
+        } else {
+            darkColors(
+                primary = Color(stringMap["primary"]!!.toInt()),
+                primaryVariant = Color(stringMap["primaryVariant"]!!.toInt()),
+                onPrimary = Color(stringMap["onPrimary"]!!.toInt()),
 
-            secondary = Color(stringMap["secondary"]!!.toInt()),
-            secondaryVariant = Color(stringMap["secondaryVariant"]!!.toInt()),
-            onSecondary = Color(stringMap["onSecondary"]!!.toInt()),
+                secondary = Color(stringMap["secondary"]!!.toInt()),
+                secondaryVariant = Color(stringMap["secondaryVariant"]!!.toInt()),
+                onSecondary = Color(stringMap["onSecondary"]!!.toInt()),
 
-            background = Color(stringMap["background"]!!.toInt()),
-            onBackground = Color(stringMap["onBackground"]!!.toInt()),
+                background = Color(stringMap["background"]!!.toInt()),
+                onBackground = Color(stringMap["onBackground"]!!.toInt()),
 
-            surface = Color(stringMap["surface"]!!.toInt()),
-            onSurface = Color(stringMap["onSurface"]!!.toInt()),
+                surface = Color(stringMap["surface"]!!.toInt()),
+                onSurface = Color(stringMap["onSurface"]!!.toInt()),
 
-            error = Color(stringMap["error"]!!.toInt()),
-            onError = Color(stringMap["onError"]!!.toInt()),
-        )
-        for (entry in stringMap.entries) {
+                error = Color(stringMap["error"]!!.toInt()),
+                onError = Color(stringMap["onError"]!!.toInt()),
+            )
+        }
+        for (entry in getCustomColorsMap()){
             customColorsMap[entry.key] = entry.value
         }
     }
@@ -203,7 +207,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
     val AUTO_DECRYPT = "8"
     val INSECURITY_WARNING = "9"
 
-    fun save() {
+    fun save() : String {
         val maps = mapOf(
             ENCRYPTION_ALGORITHMS to numberToEncryptionAlgorithm.toMap(),
             ENCRYPTION_PARAMETERS to numberToEncryptionParameters.toMap(),
@@ -225,42 +229,47 @@ class Parameters (application: Application) : AndroidViewModel(application){
         val saveString = saveSystem.serializeMapOfMaps(maps)
         val encryptedSaveString = saveEncryptor.encrypt(saveString)
         saveSystem.write(encryptedSaveString)
+        return encryptedSaveString
     }
-    fun load(key: String = DEFAULT_ENCRYPTION_PARAMETERS) {
-        val savedString = saveSystem.read()
+    fun load(key: String = DEFAULT_ENCRYPTION_PARAMETERS, loadString: String? = null) : Boolean {
+        val savedString = loadString ?: saveSystem.read()
         val decryptingEngine = engineGen.createEngine("AES", key)
         val decryptedString = try {decryptingEngine.decrypt(savedString)} catch (_: Exception) {savedString}
-        try {
-            if(decryptedString == savedString && savedString != "")
-                throw Exception()
-            val maps = saveSystem.deserializeMapOfMaps(decryptedString)
+        if(decryptedString == savedString && savedString != "")
+            return false
 
-            numberToEncryptionAlgorithm = maps[ENCRYPTION_ALGORITHMS]?.toMutableMap()
-                ?: mutableMapOf("" to DEFAULT_ENCRYPTION_ALGORITHM)
-            numberToEncryptionParameters = maps[ENCRYPTION_PARAMETERS]?.toMutableMap()
-                ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
-            numberToNickname = maps[NICKNAMES]?.toMutableMap() ?: mutableMapOf()
-            numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
-            setCustomColorsFromMap(maps[CUSTOM_THEME] ?: getCustomColorsMap())
-            numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloatOrNull()?:0f }?.toMutableMap() ?: mutableMapOf()
-            numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to false)
-            numberToInsecurityWarning = maps[INSECURITY_WARNING]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to true)
+        val maps: Map<String, Map<String, String>> = try {
+            saveSystem.deserializeMapOfMaps(decryptedString)
+        } catch (e: Exception) {
+            return false
+        }
 
-            if(maps.containsKey(SINGLE_VALUE_PARAMETERS)){
-                val svp = maps[SINGLE_VALUE_PARAMETERS]!!
-                theme.value = svp[THEME] ?: "System"
-                saveEncryptionParameter.value = svp[SAVE_ENCRYPTION_PARAMETER]
-                    ?: DEFAULT_ENCRYPTION_PARAMETERS
-            } else {
-                // Backwards compatibility load (don't need to add new params because they wont have them saved in the old format)
-                theme.value = (maps[THEME] ?: mapOf("" to "System"))[""] ?: "System"
-                saveEncryptionParameter.value = (maps[SAVE_ENCRYPTION_PARAMETER]
-                    ?: mapOf("" to DEFAULT_ENCRYPTION_PARAMETERS))[""]
-                    ?: DEFAULT_ENCRYPTION_PARAMETERS
-            }
+        numberToEncryptionAlgorithm = maps[ENCRYPTION_ALGORITHMS]?.toMutableMap()
+            ?: mutableMapOf("" to DEFAULT_ENCRYPTION_ALGORITHM)
+        numberToEncryptionParameters = maps[ENCRYPTION_PARAMETERS]?.toMutableMap()
+            ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
+        numberToNickname = maps[NICKNAMES]?.toMutableMap() ?: mutableMapOf()
+        numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
+        setCustomColorsFromMap(maps[CUSTOM_THEME] ?: mapOf())
+        numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloatOrNull()?:0f }?.toMutableMap() ?: mutableMapOf()
+        numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to false)
+        numberToInsecurityWarning = maps[INSECURITY_WARNING]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to true)
 
-            loaded.value = true
-        } catch (_: Exception){}
+        if(maps.containsKey(SINGLE_VALUE_PARAMETERS)){
+            val svp = maps[SINGLE_VALUE_PARAMETERS]!!
+            theme.value = svp[THEME] ?: "System"
+            saveEncryptionParameter.value = svp[SAVE_ENCRYPTION_PARAMETER]
+                ?: DEFAULT_ENCRYPTION_PARAMETERS
+        } else {
+            // Backwards compatibility load (don't need to add new params because they wont have them saved in the old format)
+            theme.value = (maps[THEME] ?: mapOf("" to "System"))[""] ?: "System"
+            saveEncryptionParameter.value = (maps[SAVE_ENCRYPTION_PARAMETER]
+                ?: mapOf("" to DEFAULT_ENCRYPTION_PARAMETERS))[""]
+                ?: DEFAULT_ENCRYPTION_PARAMETERS
+        }
+
+        loaded.value = true
+        return true
     }
 
     // Editable Parameters
@@ -284,6 +293,9 @@ class Parameters (application: Application) : AndroidViewModel(application){
             SectionMarker("Theme Settings"),
             primaryThemeSelector(),
             customThemeColorSelectors(theme.value),
+            SectionMarker("Save Backup"),
+            exportSaveModal(),
+            importSaveModal(),
         )
     }
 
@@ -374,7 +386,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
                 save()
             }},
             currentState = saveEncryptionParameter.value,
-            comment = " (\"$DEFAULT_ENCRYPTION_PARAMETERS\" = no auth screen)"
+            comment = "Set Value (\"$DEFAULT_ENCRYPTION_PARAMETERS\" = no auth screen)"
         )
     }
     private fun nicknameSelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
@@ -391,7 +403,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
                 save()
             }},
             currentState = getNicknameForNumber(currentState.number, currentState.name),
-            comment = " (Leave this blank -> Reset to ${currentState.name})"
+            comment = "Set Value (Leave this blank -> Reset to ${currentState.name})"
         )
     }
     private fun contactSortingPrioritySelector(currentState: PhoneContact?) : (@Composable ()->Unit)? {
@@ -511,6 +523,39 @@ class Parameters (application: Application) : AndroidViewModel(application){
                     currentState = mutableStateOf(Color(customColorsMap[it[0]]!!.toInt()))
                 )
             }.toTypedArray()
+    }
+    private fun exportSaveModal() : @Composable ()->Unit {
+        return ModalSelector(
+            name = "Export Save Data",
+            hint = "This will open a dialog with a block of text that you can import into another instance of this application to backup or move all of your existing settings.",
+            contents = arrayOf<@Composable ()->Unit>(
+                {
+                    TextField(
+                        value = save(),
+                        onValueChange = {},
+                        readOnly = true,
+                    )
+                }
+            ),
+        )
+    }
+    private fun importSaveModal() : @Composable ()->Unit {
+        return FreeSelector(
+            name = "Import Save Data",
+            hint = "This will open a dialog where you can use an exported block of text to load all of the app parameters you had at the time of the export.\n" +
+                    "Save Encryption Key must match the key used to encrypt the exported save data.\n" +
+                    "WARNING: If you import data, your current settings will be replaced and NOTHING WILL REMAIN." +
+                    "If you empty the field and tap set, YOUR SAVE DATA WILL BE WIPED.",
+            setter = { key: String -> run {
+                if(load(saveEncryptionParameter.value, key)) {
+                    save()
+                } else {
+                    toaster.toast("Incorrect Encryption Key or Malformed Export Data", true)
+                }
+            }},
+            currentState = "(Clear this and tap 'Set' to wipe parameters)",
+            comment = "Paste Import Text (Read warnings in info)",
+        )
     }
 
     // Initialization
