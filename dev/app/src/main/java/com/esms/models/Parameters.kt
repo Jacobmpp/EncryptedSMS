@@ -173,6 +173,9 @@ class Parameters (application: Application) : AndroidViewModel(application){
                 onError = Color(stringMap["onError"]!!.toInt()),
             )
         }
+        for (entry in getCustomColorsMap()){
+            customColorsMap[entry.key] = entry.value
+        }
     }
     private fun getCustomColorsMap() : Map<String, String>{
         return mapOf(
