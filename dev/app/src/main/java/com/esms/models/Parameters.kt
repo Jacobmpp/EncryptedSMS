@@ -26,11 +26,30 @@ class Parameters (application: Application) : AndroidViewModel(application){
     val DEFAULT_ENCRYPTION_ALGORITHM = "AES"
     val DEFAULT_ENCRYPTION_PARAMETERS = "insecure"
     val DEFAULT_LABEL = "Default"
+    val DEFAULT_CUSTOM_COLORS = darkColors(
+        primary = Color(0xFF1111AA),
+        primaryVariant = Color(0xFF116666),
+        onPrimary = Color(0xFFEEEEEE),
+
+        secondary = Color(0xFF771177),
+        secondaryVariant = Color(0xFF804040),
+        onSecondary = Color(0xFFEEEEEE),
+
+        background = Color(0xFF333333),
+        onBackground = Color(0xFFEEEEEE),
+
+        surface = Color(0xFF111111),
+        onSurface = Color(0xFFEEEEEE),
+
+        error = Color(0xFFFF4040),
+        onError = Color(0xFFFFFFFF),
+    )
 
     // Services
     private val engineGen = CryptographyEngineGenerator()
     private val saveSystem = SharedPreferencesService(application.applicationContext)
     val app = application
+    val toaster = Toaster(app.applicationContext)
 
     // Ephemeral Params
     var loaded = mutableStateOf(false)
@@ -124,53 +143,33 @@ class Parameters (application: Application) : AndroidViewModel(application){
 
     var theme = mutableStateOf("System") // Light, Dark, System, Custom
 
-    private val customColors = mutableStateOf(
-        darkColors(
-            primary = Color(0xFF1111AA),
-            primaryVariant = Color(0xFF116666),
-            onPrimary = Color(0xFFEEEEEE),
-
-            secondary = Color(0xFF771177),
-            secondaryVariant = Color(0xFF804040),
-            onSecondary = Color(0xFFEEEEEE),
-
-            background = Color(0xFF333333),
-            onBackground = Color(0xFFEEEEEE),
-
-            surface = Color(0xFF111111),
-            onSurface = Color(0xFFEEEEEE),
-
-            error = Color(0xFFFF4040),
-            onError = Color(0xFFFFFFFF),
-        )
-    )
+    private val customColors = mutableStateOf(DEFAULT_CUSTOM_COLORS)
     private val customColorsMap = mutableMapOf<String, String>()
     fun getCustomColors() : Colors {
         return customColors.value
     }
     private fun setCustomColorsFromMap(stringMap: Map<String, String>) {
-        if(stringMap.isEmpty())
-            return
-        customColors.value = darkColors(
-            primary = Color(stringMap["primary"]!!.toInt()),
-            primaryVariant = Color(stringMap["primaryVariant"]!!.toInt()),
-            onPrimary = Color(stringMap["onPrimary"]!!.toInt()),
+        customColors.value = if(stringMap.isEmpty()) {
+            DEFAULT_CUSTOM_COLORS
+        } else {
+            darkColors(
+                primary = Color(stringMap["primary"]!!.toInt()),
+                primaryVariant = Color(stringMap["primaryVariant"]!!.toInt()),
+                onPrimary = Color(stringMap["onPrimary"]!!.toInt()),
 
-            secondary = Color(stringMap["secondary"]!!.toInt()),
-            secondaryVariant = Color(stringMap["secondaryVariant"]!!.toInt()),
-            onSecondary = Color(stringMap["onSecondary"]!!.toInt()),
+                secondary = Color(stringMap["secondary"]!!.toInt()),
+                secondaryVariant = Color(stringMap["secondaryVariant"]!!.toInt()),
+                onSecondary = Color(stringMap["onSecondary"]!!.toInt()),
 
-            background = Color(stringMap["background"]!!.toInt()),
-            onBackground = Color(stringMap["onBackground"]!!.toInt()),
+                background = Color(stringMap["background"]!!.toInt()),
+                onBackground = Color(stringMap["onBackground"]!!.toInt()),
 
-            surface = Color(stringMap["surface"]!!.toInt()),
-            onSurface = Color(stringMap["onSurface"]!!.toInt()),
+                surface = Color(stringMap["surface"]!!.toInt()),
+                onSurface = Color(stringMap["onSurface"]!!.toInt()),
 
-            error = Color(stringMap["error"]!!.toInt()),
-            onError = Color(stringMap["onError"]!!.toInt()),
-        )
-        for (entry in stringMap.entries) {
-            customColorsMap[entry.key] = entry.value
+                error = Color(stringMap["error"]!!.toInt()),
+                onError = Color(stringMap["onError"]!!.toInt()),
+            )
         }
     }
     private fun getCustomColorsMap() : Map<String, String>{
@@ -246,7 +245,7 @@ class Parameters (application: Application) : AndroidViewModel(application){
             ?: mutableMapOf("" to DEFAULT_ENCRYPTION_PARAMETERS)
         numberToNickname = maps[NICKNAMES]?.toMutableMap() ?: mutableMapOf()
         numberToLastMessageTime = maps[TIMESTAMPS]?.toMutableMap() ?: mutableMapOf()
-        setCustomColorsFromMap(maps[CUSTOM_THEME] ?: getCustomColorsMap())
+        setCustomColorsFromMap(maps[CUSTOM_THEME] ?: mapOf())
         numberToSortingPriority = maps[CONTACT_ORDERING_PRIORITY]?.mapValues { (_, value) -> value.toFloatOrNull()?:0f }?.toMutableMap() ?: mutableMapOf()
         numberToAutoDecrypt = maps[AUTO_DECRYPT]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to false)
         numberToInsecurityWarning = maps[INSECURITY_WARNING]?.mapValues { (_, value) -> value.toBoolean() }?.toMutableMap() ?: mutableMapOf("" to true)
