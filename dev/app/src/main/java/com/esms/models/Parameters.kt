@@ -2,6 +2,7 @@ package com.esms.models
 
 import android.app.Application
 import androidx.compose.material.Colors
+import androidx.compose.material.TextField
 import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -11,6 +12,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.AndroidViewModel
 import com.esms.services.CryptographyEngineGenerator
 import com.esms.services.SharedPreferencesService
+import com.esms.services.Toaster
 import com.esms.services.engines.CryptographyEngine
 import com.esms.services.engines.custom.PlainTextEngine
 import com.esms.views.parameters.selectors.ColorSelector
@@ -288,6 +290,9 @@ class Parameters (application: Application) : AndroidViewModel(application){
             SectionMarker("Theme Settings"),
             primaryThemeSelector(),
             customThemeColorSelectors(theme.value),
+            SectionMarker("Save Backup"),
+            exportSaveModal(),
+            importSaveModal(),
         )
     }
 
@@ -515,6 +520,39 @@ class Parameters (application: Application) : AndroidViewModel(application){
                     currentState = mutableStateOf(Color(customColorsMap[it[0]]!!.toInt()))
                 )
             }.toTypedArray()
+    }
+    private fun exportSaveModal() : @Composable ()->Unit {
+        return ModalSelector(
+            name = "Export Save Data",
+            hint = "This will open a dialog with a block of text that you can import into another instance of this application to backup or move all of your existing settings.",
+            contents = arrayOf<@Composable ()->Unit>(
+                {
+                    TextField(
+                        value = save(),
+                        onValueChange = {},
+                        readOnly = true,
+                    )
+                }
+            ),
+        )
+    }
+    private fun importSaveModal() : @Composable ()->Unit {
+        return FreeSelector(
+            name = "Import Save Data",
+            hint = "This will open a dialog where you can use an exported block of text to load all of the app parameters you had at the time of the export.\n" +
+                    "Save Encryption Key must match the key used to encrypt the exported save data.\n" +
+                    "WARNING: If you import data, your current settings will be replaced and NOTHING WILL REMAIN." +
+                    "If you empty the field and tap set, YOUR SAVE DATA WILL BE WIPED.",
+            setter = { key: String -> run {
+                if(load(saveEncryptionParameter.value, key)) {
+                    save()
+                } else {
+                    toaster.toast("Incorrect Encryption Key or Malformed Export Data", true)
+                }
+            }},
+            currentState = "(Clear this and tap 'Set' to wipe parameters)",
+            comment = "Paste Import Text (Read warnings in info)",
+        )
     }
 
     // Initialization
